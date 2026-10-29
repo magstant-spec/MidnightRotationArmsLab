@@ -1,0 +1,8 @@
+# Backup copies made before each change (history now lives in git)
+*.bak*
+
+# Editor / OS clutter
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,24 @@
+﻿## Interface: 120000,120001,120005,120007,120100,120105,120107
+## Title: Midnight Rotation Arms Lab
+## Notes: Midnight rotation helper for every DPS specialization.
+## Author: Reece
+## Version: 0.5.0-all-dps-specs
+## Category: Combat
+## IconTexture: Interface\Icons\Ability_Warrior_OffensiveStance
+## SavedVariables: MidnightRotationArmsLabDB
+
+Core.lua
+Engine.lua
+SpecEngine.lua
+Specs\DeathKnight.lua
+Specs\DemonHunter.lua
+Specs\Druid.lua
+Specs\Evoker.lua
+Specs\Hunter.lua
+Specs\Mage.lua
+Specs\Monk.lua
+Specs\Priest.lua
+Specs\Rogue.lua
+Specs\Shaman.lua
+Specs\Warlock.lua
+UI.lua
