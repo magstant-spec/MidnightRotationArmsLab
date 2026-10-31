@@ -323,3 +323,20 @@ Fix (0.5.8):
 Rage model note:
 - The learned auto-attack gain sat at the 2.0 floor and the estimate jumped to ~130 during Bladestorm, so generation values (Bladestorm +20 x2 during Recklessness) overestimate.
 - The rotation now uses "Rampage whenever usable", so this no longer affects Fury recommendations. Tune it later with `/midrotlab rage`.
+
+
+## 0.5.9 Bladestorm only inside Recklessness (2026-10-31)
+
+Trace 23:00 (130s, Fury Slayer ST):
+- Rampage 24/min, clean Rampage/Crushing Blow alternation, Recklessness every 40-43s, Odyn's Fury 6-9s into each window.
+- The player followed the recommendation for 109 of 156 casts.
+- But Bladestorm (cooldown ~31s) landed ~9s BEFORE each Recklessness (34.2, 75.0, 115.4 vs Recklessness 43.9, 84.3, 126.2). The 36-48s hold from 0.5.8 started too late.
+
+Evidence: the #1 Ula'tek Mythic Fury log on Warcraft Logs (Eroka, 9:50 kill, report w6mL7pHjB8G3fKP4 fight 17):
+- 12 Recklessness and 12 Bladestorm casts.
+- Every Bladestorm came 1-14s AFTER a Recklessness, never before one.
+- Odyn's Fury only 3 casts, each shortly before a Recklessness.
+
+Fix:
+- New Engine.ShouldHoldFuryBladestormForRecklessness: outside a Recklessness window, hold Bladestorm while Recklessness is known, cooldowns are enabled, and Recklessness was cast within the last 55s (or is ready to cast).
+- Slayer ST and AoE use it for Bladestorm. Odyn's Fury keeps the previous slot logic.

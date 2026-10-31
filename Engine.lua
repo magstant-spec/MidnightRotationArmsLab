@@ -4144,6 +4144,27 @@ function Engine.IsFuryCooldownWindow(state)
     return state and (state.recklessnessUp == true or state.avatarUp == true)
 end
 
+-- 0.5.9: the #1 Ula'tek Mythic Fury log (Archon/Warcraft Logs, 9:50 kill)
+-- cast 12 Recklessness and 12 Bladestorm, every Bladestorm 1-14s after a
+-- Recklessness and never before one. Hold Bladestorm for Recklessness unless
+-- cooldown recommendations are off, Recklessness is unknown, or it is overdue.
+function Engine.ShouldHoldFuryBladestormForRecklessness(state)
+    if not state or Engine.IsFuryCooldownWindow(state) then
+        return false
+    end
+
+    if not Engine.ShouldRecommendMajorCooldowns() or not IsSpellKnownInBook(RECKLESSNESS_SPELL_ID) then
+        return false
+    end
+
+    if furyLastRecklessnessCastAt <= 0 then
+        -- Recklessness not used yet this fight: it is next anyway.
+        return Engine.CanRecommendSelfSpell(RECKLESSNESS_SPELL_ID)
+    end
+
+    return (GetTime() - furyLastRecklessnessCastAt) <= 55
+end
+
 function Engine.ShouldFuryDelayBladestormForCooldowns(state)
     if not state or Engine.IsFuryCooldownWindow(state) then
         return false
@@ -4300,14 +4321,12 @@ function Engine.RecommendFurySlayerSingleTarget(state)
     -- briefly only if Recklessness is about to come back.
     local burstSlot = inWindow or not Engine.ShouldFuryDelayBladestormForCooldowns(state)
 
-    if burstSlot then
-        if Engine.CanRecommendWarriorBladestorm(state) then
-            return state.spell.bladestorm
-        end
+    if Engine.CanRecommendWarriorBladestorm(state) and not Engine.ShouldHoldFuryBladestormForRecklessness(state) then
+        return state.spell.bladestorm
+    end
 
-        if Engine.CanRecommendFuryOdynsFury(state) then
-            return state.spell.odynsFury
-        end
+    if burstSlot and Engine.CanRecommendFuryOdynsFury(state) then
+        return state.spell.odynsFury
     end
 
     if Engine.CanUseEnemySpell(state.spell and state.spell.crushingBlow) then
@@ -4367,14 +4386,12 @@ function Engine.RecommendFurySlayerAOE(state)
     end
 
     local burstSlot = inWindow or not Engine.ShouldFuryDelayBladestormForCooldowns(state)
-    if burstSlot then
-        if Engine.CanRecommendFuryOdynsFury(state) then
-            return state.spell.odynsFury
-        end
+    if burstSlot and Engine.CanRecommendFuryOdynsFury(state) then
+        return state.spell.odynsFury
+    end
 
-        if Engine.CanRecommendWarriorBladestorm(state) then
-            return state.spell.bladestorm
-        end
+    if Engine.CanRecommendWarriorBladestorm(state) and not Engine.ShouldHoldFuryBladestormForRecklessness(state) then
+        return state.spell.bladestorm
     end
 
     if Engine.CanUseEnemySpell(state.spell and state.spell.crushingBlow) then
