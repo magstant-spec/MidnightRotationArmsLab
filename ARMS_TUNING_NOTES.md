@@ -612,3 +612,27 @@ Next check
 - Mountain Thane also benefits, because it shares `ShouldFuryRampageHighOrExpiring`.
 - New trace fields: `rampageUsableFor`, `rampageGenSinceUsable`.
 - Next: rerun the same Fury Slayer ST log and compare the analyzer's accuracy and the two Rampage mistakes.
+
+
+## 0.5.2-0.5.3 Rage probe and running rage estimate (2026-10-31)
+
+Rage probe results on live 12.1.5 (Fury, 15s of combat):
+- UnitPower and UnitPowerPercent for rage are hidden, even out of combat. Attack speed is hidden too.
+- UNIT_POWER_FREQUENT still fires on every rage change (~3.5/s, power type readable). About 1/3 of those were not near a cast, so they are auto-attacks.
+- Spell rage costs and the IsSpellUsable "not enough resource" flag stay readable in combat.
+- GetSpellPowerCost reported 50 for Rampage; the user confirms Rampage costs 80. RageModel overrides it to 80.
+- Assisted Highlight suggested Whirlwind 60/60 times and Rampage never, so it is useless as a rage signal.
+
+RageModel.lua (0.5.3) keeps a running rage estimate:
+- Adds known generator amounts on casts (doubled during Recklessness) and subtracts exact costs on spenders.
+- Treats unexplained rage-change events as auto-attacks.
+- Snaps to a known value whenever a spender's "not enough rage" flag flips or contradicts the estimate, and learns the auto-attack gain from those corrections.
+- In simulation: mean error 5-8 rage.
+
+Wiring:
+- Fury's Rampage-at-100 check and Arms' Execute-at-rage check use the estimate.
+- `/midrotlab rage` toggles a draggable readout showing real rage (displayed only, never read) next to the estimate.
+- `/midrotlab rage status` prints the model's numbers.
+- Traces record `rageEst` and `rageAutoGain`; the dump API line shows `RageEst`.
+
+Next: compare the readout's two numbers during a pull. If the estimate drifts, tune the GENERATION table in RageModel.lua.

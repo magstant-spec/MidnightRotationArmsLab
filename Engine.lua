@@ -3035,6 +3035,11 @@ function Engine.BuildWarriorState()
     local gcd = GetApproxGlobalCooldown()
     local targetHealthPercent = GetUnitHealthPercent("target")
     local assistedSuggestion = Engine.GetAssistedCombatSuggestion()
+    local rageEstimate = nil
+    if addon.RageModel then
+        local okEstimate, estimate = pcall(addon.RageModel.Update, addon.RageModel)
+        rageEstimate = okEstimate and estimate or nil
+    end
     local rageBandLow, rageBandHigh = nil, nil
     if IsUnitPowerSecret("player", RAGE_POWER_TYPE) then
         rageBandLow, rageBandHigh = Engine.GetRageBand()
@@ -3220,6 +3225,7 @@ function Engine.BuildWarriorState()
         rage = GetCurrentRage(),
         rageBandLow = rageBandLow,
         rageBandHigh = rageBandHigh,
+        rageEstimate = rageEstimate,
         assistedSuggestion = assistedSuggestion,
         resourceName = "Rage",
         resourceKnown = not IsUnitPowerSecret("player", RAGE_POWER_TYPE),
@@ -4078,6 +4084,10 @@ function addon:CanUseArmsExecuteAtRage(state, rageThreshold)
             return true
         end
 
+        if type(state.rageEstimate) == "number" then
+            return state.rageEstimate >= threshold
+        end
+
         return state.executeStrictUsable == true
     end
 
@@ -4153,6 +4163,12 @@ function Engine.ShouldFuryRampageAtHighRage(state, threshold)
 
     if state.rageKnown == true then
         return (state.rage or 0) >= (threshold or 100)
+    end
+
+    -- 0.5.3: running rage estimate (RageModel.lua), anchored to exact rage
+    -- costs whenever a spender's "not enough rage" flag flips.
+    if type(state.rageEstimate) == "number" then
+        return state.rageEstimate >= (threshold or 100)
     end
 
     -- Rage is hidden in combat. Rampage turns usable at 80 rage, so treat the
@@ -6609,6 +6625,7 @@ function addon:GetDebugSnapshot()
         assistedSuddenDeathSignal = state.isArms == true and addon:HasAssistedArmsSuddenDeathSignal(state) or false,
         rageBandLow = state.rageBandLow,
         rageBandHigh = state.rageBandHigh,
+        rageEstimate = state.rageEstimate,
         observedGcd = Engine.GetObservedGlobalCooldown(),
         colossusCooldown = state.isArms == true
             and GetCooldownRemaining(state.spell and state.spell.warbreakerLike or COLOSSUS_SMASH_SPELL_ID)
