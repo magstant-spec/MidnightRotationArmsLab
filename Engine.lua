@@ -2533,6 +2533,14 @@ function Engine.IsFuryWhirlwindSpell(spellID, spellName)
         return true
     end
 
+    -- Mountain Thane cleaves through Thunder Clap / Thunder Blast instead of
+    -- Whirlwind (top M+ Thane logs never cast Whirlwind).
+    if (spellName == "Thunder Clap" or spellName == "Thunder Blast")
+    and addon.IsFuryMountainThane and addon:IsFuryMountainThane()
+    then
+        return true
+    end
+
     for _, whirlwindSpellID in ipairs(WHIRLWIND_CANDIDATE_SPELL_IDS) do
         if spellID == whirlwindSpellID then
             return true
@@ -4610,94 +4618,69 @@ function Engine.RecommendFuryMountainThaneSingleTarget(state)
     return nil
 end
 
+-- 0.5.7 Fury Mountain Thane AoE, rebuilt from top Mythic+ logs (Archon, Ruby
+-- Life Pools high keys, 17 runs, 65% Mountain Thane, 12.1.5): Thunder Clap
+-- keeps the cleave buff, Bloodthirst before Raging Blow while building, first
+-- Rampage before Odyn's Fury -> Recklessness, then a burst loop of Rampage
+-- (whenever usable) / Thunder Blast / Bloodbath / Crushing Blow.
 function Engine.RecommendFuryMountainThaneAOE(state)
-    if Engine.IsFuryCooldownWindow(state) then
-        if state.avatarUp ~= true and Engine.CanRecommendWarriorAvatar(state) then
-            return AVATAR_SPELL_ID
-        end
+    local inWindow = Engine.IsFuryCooldownWindow(state)
+    local thunderClapSpellID = THUNDER_CLAP_SPELL_ID
 
-        if Engine.ShouldFuryRampageToRefreshEnrage(state) then
-            return RAMPAGE_SPELL_ID
-        end
+    if Engine.NeedsFuryCleaveBuff(state) and Engine.CanUseEnemySpell(thunderClapSpellID) then
+        return thunderClapSpellID
+    end
 
-        if Engine.CanUseEnemySpell(state.spell and state.spell.thunderBlast) then
-            return state.spell.thunderBlast
-        end
-
-        if (state.targetCount or 1) > 6 and Engine.CanUseEnemySpell(THUNDER_CLAP_SPELL_ID) then
-            return THUNDER_CLAP_SPELL_ID
-        end
-
-        if Engine.ShouldFuryRampageAtHighRage(state, 100) then
-            return RAMPAGE_SPELL_ID
-        end
-
-        local bloodbathRecommendation = Engine.RecommendFuryBloodbathDuringRecklessness(state)
-        if bloodbathRecommendation then
-            return bloodbathRecommendation
-        end
-
-        local hackAndSlashSpellID = Engine.GetFuryHackAndSlashStrike(state)
-        if hackAndSlashSpellID then
-            return hackAndSlashSpellID
-        end
-
+    -- Pull start: build into the first Rampage before spending cooldowns.
+    local pullStart = (state.combatTime or math.huge) <= 12.0 and state.rampageCastThisCombat ~= true
+    if pullStart then
         if Engine.CanUseEnemySpell(RAMPAGE_SPELL_ID) then
             return RAMPAGE_SPELL_ID
         end
-
-        if Engine.NeedsFuryCleaveBuff(state) and Engine.CanUseEnemySpell(THUNDER_CLAP_SPELL_ID) then
-            return THUNDER_CLAP_SPELL_ID
-        end
-
-        if Engine.CanUseEnemySpell(state.spell and state.spell.crushingBlow) then
-            return state.spell.crushingBlow
-        end
-
-        if Engine.CanRecommendFuryOdynsFury(state) then
-            return state.spell.odynsFury
-        end
-
-        if Engine.CanUseExecuteSpell(state) then
-            return state.spell.execute
-        end
-
         if Engine.CanUseEnemySpell(state.spell and state.spell.bloodthirstLike) then
             return state.spell.bloodthirstLike
         end
-
         if Engine.CanUseEnemySpell(state.spell and state.spell.ragingBlowLike) then
             return state.spell.ragingBlowLike
         end
+    end
 
-        if Engine.CanUseEnemySpell(THUNDER_CLAP_SPELL_ID) then
-            return THUNDER_CLAP_SPELL_ID
+    if not inWindow then
+        -- Odyn's Fury goes out just before Recklessness.
+        if Engine.CanRecommendSelfSpell(RECKLESSNESS_SPELL_ID) and Engine.CanRecommendFuryOdynsFury(state) then
+            return state.spell.odynsFury
         end
 
-        return nil
-    end
+        if Engine.CanRecommendSelfSpell(RECKLESSNESS_SPELL_ID) then
+            return RECKLESSNESS_SPELL_ID
+        end
 
-    if Engine.CanRecommendSelfSpell(RECKLESSNESS_SPELL_ID) then
-        return RECKLESSNESS_SPELL_ID
-    end
-
-    if Engine.CanRecommendWarriorAvatar(state) then
+        if Engine.CanRecommendWarriorAvatar(state) then
+            return AVATAR_SPELL_ID
+        end
+    elseif state.avatarUp ~= true and Engine.CanRecommendWarriorAvatar(state) then
         return AVATAR_SPELL_ID
+    end
+
+    if Engine.CanUseEnemySpell(RAMPAGE_SPELL_ID) then
+        return RAMPAGE_SPELL_ID
     end
 
     if Engine.CanUseEnemySpell(state.spell and state.spell.thunderBlast) then
         return state.spell.thunderBlast
     end
 
-    if Engine.NeedsFuryCleaveBuff(state) and Engine.CanUseEnemySpell(THUNDER_CLAP_SPELL_ID) then
-        return THUNDER_CLAP_SPELL_ID
+    if inWindow then
+        if Engine.CanUseEnemySpell(state.spell and state.spell.bloodbath) then
+            return state.spell.bloodbath
+        end
+
+        if Engine.CanUseEnemySpell(state.spell and state.spell.crushingBlow) then
+            return state.spell.crushingBlow
+        end
     end
 
-    if Engine.ShouldFuryRampageHighOrExpiring(state) then
-        return RAMPAGE_SPELL_ID
-    end
-
-    if Engine.CanRecommendFuryOdynsFury(state) then
+    if Engine.CanRecommendFuryOdynsFury(state) and not Engine.ShouldFuryDelayBladestormForCooldowns(state) then
         return state.spell.odynsFury
     end
 
@@ -4705,30 +4688,25 @@ function Engine.RecommendFuryMountainThaneAOE(state)
         return state.spell.bloodthirstLike
     end
 
-    local hackAndSlashSpellID = Engine.GetFuryHackAndSlashStrike(state)
-    if hackAndSlashSpellID then
-        return hackAndSlashSpellID
-    end
-
     if Engine.CanUseExecuteSpell(state) then
         return state.spell.execute
-    end
-
-    if Engine.CanUseEnemySpell(RAMPAGE_SPELL_ID) then
-        return RAMPAGE_SPELL_ID
     end
 
     if Engine.CanUseEnemySpell(state.spell and state.spell.ragingBlowLike) then
         return state.spell.ragingBlowLike
     end
 
-    if Engine.CanUseEnemySpell(THUNDER_CLAP_SPELL_ID) then
-        return THUNDER_CLAP_SPELL_ID
+    if Engine.CanUseEnemySpell(thunderClapSpellID) then
+        return thunderClapSpellID
     end
 
     return nil
 end
 function Engine.RecommendFuryMountainThane(state)
+    if state.isAOE and state.inCombat == true then
+        return Engine.RecommendFuryMountainThaneAOE(state)
+    end
+
     local openerSpellID, openerHandled = Engine.RecommendFuryOpener(state, true)
     if openerHandled then
         return openerSpellID

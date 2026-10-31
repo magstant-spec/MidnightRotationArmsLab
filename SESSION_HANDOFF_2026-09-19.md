@@ -273,3 +273,30 @@ Changes:
   - Odyn's Fury > Bladestorm (on cooldown; outside Recklessness only held if it is about to return).
   - Crushing Blow > Execute > Raging Blow > Bloodbath > Bloodthirst > Whirlwind.
 - Mountain Thane is unchanged and still to be checked against its own M+ logs.
+
+
+## 0.5.7 Fury Mountain Thane AoE from top Mythic+ logs (2026-10-31)
+
+Source: Archon, Ruby Life Pools high keys (+20 to +22), 17 runs, 65% Mountain Thane (the only current dungeon where Thane leads), 12.1.5.
+
+Run-wide CPM:
+- Rampage 18.2, Bloodthirst 8.3, Raging Blow 7.2, Bloodbath 6.5 (77.8% uptime), Thunder Clap 4.6 (top damage), Crushing Blow 3.6, Odyn's Fury 1.3.
+- No Whirlwind casts: Thunder Clap is Thane's cleave button.
+
+First-pull pattern (4 runs read):
+- Charge > Bloodthirst > Thunder Clap > Raging Blow / Bloodthirst > first Rampage, with Thunder Clap every few casts.
+- Odyn's Fury > Recklessness (+trinket/racial). Timing depends on gathering the pull.
+- Burst loop: Rampage whenever usable (often twice in a row) > Thunder Blast > Bloodbath > Crushing Blow, with Thunder Clap when no Thunder Blast is available.
+- Outside burst: Bloodthirst before Raging Blow.
+
+Changes:
+- IsFuryWhirlwindSpell counts Thunder Clap / Thunder Blast for Mountain Thane, so the cleave-buff tracker works without Whirlwind.
+- Mountain Thane in combat with AoE now skips the shared opener and uses the AoE function directly.
+- New Mountain Thane AoE priority:
+  - Thunder Clap when the cleave buff is gone.
+  - Pull start (first 12s, before the first Rampage): Rampage if usable > Bloodthirst > Raging Blow.
+  - Odyn's Fury just before Recklessness > Recklessness > Avatar.
+  - Rampage whenever usable > Thunder Blast.
+  - In window: Bloodbath > Crushing Blow.
+  - Then Odyn's Fury (unless Recklessness is about to return) > Bloodthirst > Execute > Raging Blow > Thunder Clap.
+- Mountain Thane single target is unchanged (no raid data; Slayer dominates raid).
