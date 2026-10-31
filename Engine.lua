@@ -4251,13 +4251,13 @@ function Engine.RecommendFuryOpener(state, includeBladestorm)
     return nil, false
 end
 
--- 0.5.4 Fury Slayer single target, rebuilt from top Mythic raid logs (Archon,
--- Vashnik, 11 parses, 12.1.5). Top players spend Rampage every time it is
--- usable (~22 per minute), alternate Rampage / Crushing Blow inside the 24s
--- Recklessness window, and press Odyn's Fury + Bladestorm in its back half.
+-- Fury Slayer single target, rebuilt from top raid logs (Archon 12.1.5:
+-- Vashnik Mythic 11 parses, Ula'tek Mythic 9 and Heroic 13). Top players spend
+-- Rampage every time it is usable, alternate Rampage / Crushing Blow inside the
+-- 24s Recklessness window, and use Bladestorm and Odyn's Fury on cooldown
+-- (Bladestorm ~1-2 GCDs into Recklessness, Odyn's Fury shortly after).
 function Engine.RecommendFurySlayerSingleTarget(state)
     local inWindow = Engine.IsFuryCooldownWindow(state)
-    local reckRemaining = state.recklessnessRemaining or 0
 
     if not inWindow then
         if Engine.CanRecommendSelfSpell(RECKLESSNESS_SPELL_ID) then
@@ -4275,22 +4275,17 @@ function Engine.RecommendFurySlayerSingleTarget(state)
         return RAMPAGE_SPELL_ID
     end
 
-    -- Odyn's Fury and Bladestorm: back half of Recklessness, or on cooldown
-    -- outside it unless Recklessness is about to come back.
-    local burstSlot
-    if inWindow then
-        burstSlot = state.recklessnessUp ~= true or reckRemaining <= 10
-    else
-        burstSlot = not Engine.ShouldFuryDelayBladestormForCooldowns(state)
-    end
+    -- Bladestorm and Odyn's Fury on cooldown; outside Recklessness, hold them
+    -- briefly only if Recklessness is about to come back.
+    local burstSlot = inWindow or not Engine.ShouldFuryDelayBladestormForCooldowns(state)
 
     if burstSlot then
-        if Engine.CanRecommendFuryOdynsFury(state) then
-            return state.spell.odynsFury
-        end
-
         if Engine.CanRecommendWarriorBladestorm(state) then
             return state.spell.bladestorm
+        end
+
+        if Engine.CanRecommendFuryOdynsFury(state) then
+            return state.spell.odynsFury
         end
     end
 
@@ -4437,9 +4432,11 @@ function Engine.RecommendFurySlayerAOE(state)
 
     return nil
 end
--- 0.5.4 Slayer opener from top Mythic raid logs (Archon, Vashnik, 12.1.5):
--- Charge, Raging Blow / Bloodthirst until the first Rampage (~4-8s), then
--- Recklessness. Mountain Thane keeps the older shared opener.
+-- 0.5.5 Slayer opener from top raid logs (Archon, Ula'tek Heroic 13 parses and
+-- Mythic 9 parses, 12.1.5): Charge, Recklessness within the first GCD, then the
+-- normal priority (Rampage if usable > Bladestorm > Odyn's Fury > ...).
+-- Vashnik's later Recklessness (7-11s) was fight-specific (adds).
+-- Mountain Thane keeps the older shared opener.
 function Engine.RecommendFurySlayerOpener(state)
     if not state or state.isFury ~= true then
         return nil, false
@@ -4453,25 +4450,12 @@ function Engine.RecommendFurySlayerOpener(state)
     end
 
     local combatTime = state.combatTime
-    if type(combatTime) ~= "number" or combatTime > 12.0 then
+    if type(combatTime) ~= "number" or combatTime > 8.0 then
         return nil, false
     end
 
-    if state.rampageCastThisCombat ~= true then
-        if Engine.CanUseEnemySpell(RAMPAGE_SPELL_ID) then
-            return RAMPAGE_SPELL_ID, true
-        end
-        if state.isAOE and Engine.NeedsWhirlwindBuff(state) then
-            return state.spell.whirlwind, true
-        end
-        if Engine.CanUseEnemySpell(state.spell and state.spell.ragingBlow) then
-            return state.spell.ragingBlow, true
-        end
-        local bloodthirstSpellID = state.spell and (state.spell.bloodthirst or state.spell.bloodthirstLike)
-        if Engine.CanUseEnemySpell(bloodthirstSpellID) then
-            return bloodthirstSpellID, true
-        end
-        return nil, false
+    if state.isAOE and Engine.NeedsWhirlwindBuff(state) then
+        return state.spell.whirlwind, true
     end
 
     if Engine.CanRecommendSelfSpell(RECKLESSNESS_SPELL_ID) then

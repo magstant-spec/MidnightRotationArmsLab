@@ -236,3 +236,17 @@ Changes:
 - Slayer AoE and Mountain Thane are unchanged.
 
 Next: rerun the same pull and compare against the WoWAnalyzer result (55.6% accuracy) and the top-log CPM: Rampage ~22, RB+CB ~19, Execute ~6.
+
+
+## 0.5.5 Fury Slayer opener and burst from Ula'tek logs (2026-10-31)
+
+Source: Archon, Ula'tek Mythic (9 parses) and Heroic (13 parses), 12.1.5.
+- Recklessness goes out at 0.7-2s, with Charge, and again every 40-45s. Duration is 24s (one sampled player had 18s, probably a different talent).
+- Bladestorm ~2.5-4.5s in (start of Recklessness), then Odyn's Fury ~8s. After that Rampage and Crushing Blow alternate (with Execute) until Recklessness fades, then Raging Blow / Bloodthirst until Rampage is usable again.
+- Boss-only CPM on Heroic: Rampage 15.7, Raging Blow 6.1, Crushing Blow 5.0, Bloodbath 4.0, Execute 3.2. That is the same Rampage ~= Raging Blow + Crushing Blow ratio as Vashnik.
+- Conclusion: Vashnik's late Recklessness (7-11s) and late Bladestorm were fight-specific (adds).
+
+Changes:
+- Slayer opener: Charge > (Whirlwind buff in AoE) > Recklessness > Avatar, then the normal priority.
+- Bladestorm and Odyn's Fury are on cooldown again (Bladestorm first). Outside Recklessness they are held only if it is about to come back.
+- Rampage stays whenever usable.
