@@ -210,3 +210,29 @@ Wiring:
 - Traces record `rageEst` and `rageAutoGain`; the dump API line shows `RageEst`.
 
 Next: compare the readout's two numbers during a pull. If the estimate drifts, tune the GENERATION table in RageModel.lua.
+
+
+## 0.5.4 Fury Slayer rebuilt from top Mythic raid logs (2026-10-31)
+
+Source: Archon, Mythic Vashnik, 11 top parses on 12.1.5 (412K-361K DPS). I read the cast timelines of the top four.
+
+Findings:
+- Rampage is spent every time it is usable: 22.3 CPM on the boss and the top damage ability.
+- Inside Recklessness, top players strictly alternate Rampage and Crushing Blow, with Execute dropped in.
+- Recklessness lasts 24s (the addon assumed 12s) and is recast roughly every 40s.
+- Recklessness goes out at 7-11s, after the first Rampage. It is not used on the first GCD.
+- Opener: Charge, Raging Blow x1-2, Bloodthirst, (Whirlwind with adds), Rampage, then Recklessness with potion/trinket.
+- Odyn's Fury and Bladestorm are pressed together in the back half of Recklessness (about 5-10s left), roughly every 23-25s.
+- No Avatar casts. Bloodthirst is low (2.8 CPM) and Bloodbath is 5.0. Raging Blow (10.2) and Crushing Blow (8.5) are the main builders.
+
+Changes:
+- FURY_RECKLESSNESS_DURATION 12 -> 24; RageModel's Recklessness window is also 24s.
+- New Slayer opener (Mountain Thane keeps the old shared one): Charge > Rampage if usable > Raging Blow > Bloodthirst until the first Rampage, then Recklessness.
+- New Slayer ST priority:
+  - Recklessness (outside the window), then Avatar if talented.
+  - Rampage whenever usable.
+  - Odyn's Fury and Bladestorm: inside Recklessness only with 10s or less left; outside it on cooldown, unless Recklessness is about to come back.
+  - Then Crushing Blow > Execute > Raging Blow > Bloodbath > Bloodthirst > Whirlwind.
+- Slayer AoE and Mountain Thane are unchanged.
+
+Next: rerun the same pull and compare against the WoWAnalyzer result (55.6% accuracy) and the top-log CPM: Rampage ~22, RB+CB ~19, Execute ~6.

@@ -2455,7 +2455,7 @@ end
 local FURY_WHIRLWIND_STACKS = 4
 local FURY_WHIRLWIND_BUFF_DURATION = 10.0
 local FURY_ENRAGE_DURATION = 4.0
-local FURY_RECKLESSNESS_DURATION = 12.0
+local FURY_RECKLESSNESS_DURATION = 24.0 -- 0.5.4: top Mythic logs show 24s windows (was 12)
 local SUBTLETY_SHADOW_DANCE_DURATION = 6.0
 local SUBTLETY_SHADOW_BLADES_DURATION = 20.0
 
@@ -3198,6 +3198,7 @@ function Engine.BuildWarriorState()
         openerBloodthirstDone = furyOpenerBloodthirstDone or not combatTime or combatTime > 8.0,
         openerBloodthirstCastAt = furyOpenerBloodthirstCastAt,
         recentRampageCast = furyLastRampageCastAt > 0 and (GetTime() - furyLastRampageCastAt) <= math.max(3.0, (gcd or 1.5) + 1.0),
+        rampageCastThisCombat = furyLastRampageCastAt > 0,
         furyGeneratorCastsSinceRampage = furyGeneratorCastsSinceRampage,
         furyRampageUsableFor = furyRampageUsableSince > 0 and (GetTime() - furyRampageUsableSince) or 0,
         furyGeneratorsSinceRampageUsable = furyGeneratorsSinceRampageUsable,
@@ -4250,108 +4251,51 @@ function Engine.RecommendFuryOpener(state, includeBladestorm)
     return nil, false
 end
 
+-- 0.5.4 Fury Slayer single target, rebuilt from top Mythic raid logs (Archon,
+-- Vashnik, 11 parses, 12.1.5). Top players spend Rampage every time it is
+-- usable (~22 per minute), alternate Rampage / Crushing Blow inside the 24s
+-- Recklessness window, and press Odyn's Fury + Bladestorm in its back half.
 function Engine.RecommendFurySlayerSingleTarget(state)
-    if Engine.IsFuryCooldownWindow(state) then
-        -- WoWAnalyzer order: Rampage for missing Enrage, then Rampage at 100+.
-        if Engine.ShouldFuryRampageToRefreshEnrage(state) then
-            return RAMPAGE_SPELL_ID
+    local inWindow = Engine.IsFuryCooldownWindow(state)
+    local reckRemaining = state.recklessnessRemaining or 0
+
+    if not inWindow then
+        if Engine.CanRecommendSelfSpell(RECKLESSNESS_SPELL_ID) then
+            return RECKLESSNESS_SPELL_ID
         end
 
-        if state.avatarUp ~= true and Engine.CanRecommendWarriorAvatar(state) then
+        if Engine.CanRecommendWarriorAvatar(state) then
             return AVATAR_SPELL_ID
         end
+    elseif state.avatarUp ~= true and Engine.CanRecommendWarriorAvatar(state) then
+        return AVATAR_SPELL_ID
+    end
 
-        if Engine.ShouldFuryRampageAtHighRage(state, 100) then
-            return RAMPAGE_SPELL_ID
-        end
+    if Engine.CanUseEnemySpell(RAMPAGE_SPELL_ID) then
+        return RAMPAGE_SPELL_ID
+    end
 
-        local bladestormSpellID = Engine.RecommendFurySlayerBladestormSequence(state, true)
-        if bladestormSpellID then
-            return bladestormSpellID
-        end
+    -- Odyn's Fury and Bladestorm: back half of Recklessness, or on cooldown
+    -- outside it unless Recklessness is about to come back.
+    local burstSlot
+    if inWindow then
+        burstSlot = state.recklessnessUp ~= true or reckRemaining <= 10
+    else
+        burstSlot = not Engine.ShouldFuryDelayBladestormForCooldowns(state)
+    end
 
-        if Engine.ShouldFuryUseSuddenDeathExecute(state) then
-            return state.spell.execute
-        end
-
-        if state.hackAndSlashUp ~= true and Engine.CanUseEnemySpell(RAMPAGE_SPELL_ID) then
-            return RAMPAGE_SPELL_ID
-        end
-
-        if Engine.CanUseEnemySpell(state.spell and state.spell.crushingBlow) then
-            return state.spell.crushingBlow
-        end
-
+    if burstSlot then
         if Engine.CanRecommendFuryOdynsFury(state) then
             return state.spell.odynsFury
         end
 
-        if Engine.CanUseExecuteSpell(state) then
-            return state.spell.execute
+        if Engine.CanRecommendWarriorBladestorm(state) then
+            return state.spell.bladestorm
         end
-
-        local bloodbathRecommendation = Engine.GetFuryBloodbathLikeRecommendation(state)
-        if bloodbathRecommendation then
-            return bloodbathRecommendation
-        end
-
-        local hackAndSlashStrike = Engine.GetFuryHackAndSlashStrike(state)
-        if hackAndSlashStrike then
-            return hackAndSlashStrike
-        end
-
-        if Engine.CanUseEnemySpell(RAMPAGE_SPELL_ID) then
-            return RAMPAGE_SPELL_ID
-        end
-
-        if Engine.CanUseEnemySpell(state.spell and state.spell.ragingBlow) then
-            return state.spell.ragingBlow
-        end
-
-        if Engine.CanUseEnemySpell(state.spell and state.spell.bloodthirst) then
-            return state.spell.bloodthirst
-        end
-
-        if Engine.CanUseEnemySpell(state.spell and state.spell.whirlwind) then
-            return state.spell.whirlwind
-        end
-
-        return nil
-    end
-
-    if Engine.CanRecommendSelfSpell(RECKLESSNESS_SPELL_ID) then
-        return RECKLESSNESS_SPELL_ID
-    end
-
-    if Engine.CanRecommendWarriorAvatar(state) then
-        return AVATAR_SPELL_ID
-    end
-
-    local bladestormSpellID = Engine.RecommendFurySlayerBladestormSequence(state, true)
-    if bladestormSpellID then
-        return bladestormSpellID
-    end
-
-    -- WoWAnalyzer order outside cooldowns: Enrage Rampage > Crushing Blow >
-    -- Rampage 100+ > Execute > Raging Blow > Rampage > Bloodthirst.
-    if Engine.ShouldFuryRampageToRefreshEnrage(state) then
-        return RAMPAGE_SPELL_ID
-    end
-
-    if Engine.ShouldFuryUseSuddenDeathExecute(state) and (state.suddenDeathStacks or 0) >= 2 then
-        return state.spell.execute
     end
 
     if Engine.CanUseEnemySpell(state.spell and state.spell.crushingBlow) then
         return state.spell.crushingBlow
-    end
-
-    if Engine.ShouldFuryRampageAtHighRage(state, 100) then
-        return RAMPAGE_SPELL_ID
-    end
-
-    if Engine.CanRecommendFuryOdynsFury(state) then
-        return state.spell.odynsFury
     end
 
     if Engine.CanUseExecuteSpell(state) then
@@ -4362,8 +4306,9 @@ function Engine.RecommendFurySlayerSingleTarget(state)
         return state.spell.ragingBlow
     end
 
-    if Engine.CanUseEnemySpell(RAMPAGE_SPELL_ID) then
-        return RAMPAGE_SPELL_ID
+    local bloodbathRecommendation = Engine.GetFuryBloodbathLikeRecommendation(state)
+    if bloodbathRecommendation then
+        return bloodbathRecommendation
     end
 
     if Engine.CanUseEnemySpell(state.spell and state.spell.bloodthirst) then
@@ -4492,8 +4437,56 @@ function Engine.RecommendFurySlayerAOE(state)
 
     return nil
 end
+-- 0.5.4 Slayer opener from top Mythic raid logs (Archon, Vashnik, 12.1.5):
+-- Charge, Raging Blow / Bloodthirst until the first Rampage (~4-8s), then
+-- Recklessness. Mountain Thane keeps the older shared opener.
+function Engine.RecommendFurySlayerOpener(state)
+    if not state or state.isFury ~= true then
+        return nil, false
+    end
+
+    if state.inCombat ~= true then
+        if Engine.CanRecommendEnemySpell(state.spell and state.spell.charge or CHARGE_SPELL_ID) then
+            return state.spell and state.spell.charge or CHARGE_SPELL_ID, true
+        end
+        return nil, true
+    end
+
+    local combatTime = state.combatTime
+    if type(combatTime) ~= "number" or combatTime > 12.0 then
+        return nil, false
+    end
+
+    if state.rampageCastThisCombat ~= true then
+        if Engine.CanUseEnemySpell(RAMPAGE_SPELL_ID) then
+            return RAMPAGE_SPELL_ID, true
+        end
+        if state.isAOE and Engine.NeedsWhirlwindBuff(state) then
+            return state.spell.whirlwind, true
+        end
+        if Engine.CanUseEnemySpell(state.spell and state.spell.ragingBlow) then
+            return state.spell.ragingBlow, true
+        end
+        local bloodthirstSpellID = state.spell and (state.spell.bloodthirst or state.spell.bloodthirstLike)
+        if Engine.CanUseEnemySpell(bloodthirstSpellID) then
+            return bloodthirstSpellID, true
+        end
+        return nil, false
+    end
+
+    if Engine.CanRecommendSelfSpell(RECKLESSNESS_SPELL_ID) then
+        return RECKLESSNESS_SPELL_ID, true
+    end
+
+    if Engine.CanRecommendWarriorAvatar(state) then
+        return AVATAR_SPELL_ID, true
+    end
+
+    return nil, false
+end
+
 function Engine.RecommendFurySlayer(state)
-    local openerSpellID, openerHandled = Engine.RecommendFuryOpener(state, true)
+    local openerSpellID, openerHandled = Engine.RecommendFurySlayerOpener(state)
     if openerHandled then
         return openerSpellID
     end

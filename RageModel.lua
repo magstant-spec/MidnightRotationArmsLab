@@ -258,7 +258,7 @@ local function OnCast(spellID)
     state.lastCastAt = now
 
     if name == "Recklessness" then
-        state.reckUntil = now + 12
+        state.reckUntil = now + 24
     end
 
     local cost = RageCost(spellID)
