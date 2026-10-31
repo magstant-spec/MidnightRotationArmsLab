@@ -3141,6 +3141,13 @@ function addon:HandleSlash(message)
         return
     end
 
+    if input == "rageprobe" then
+        if self.RageProbeCommand then
+            self:RageProbeCommand()
+        end
+        return
+    end
+
     local assistValue = input:match("^assist%s+(on)$") or input:match("^assist%s+(off)$")
     if input == "assist" or assistValue then
         if assistValue then
@@ -3153,7 +3160,7 @@ function addon:HandleSlash(message)
         return
     end
 
-    self:Print("Commands: /midrotlab lock, unlock, keybind, icon, cooldowns [on|off|toggle], assist [on|off], burst on|off|now, potion <name>, auto, st, cleave, aoe, targets N, trace start|stop|status|clear, reset, scale <0.5-3.0>, fontsize <10-96>, font <name>, dump, binddump <spell>")
+    self:Print("Commands: /midrotlab lock, unlock, keybind, icon, cooldowns [on|off|toggle], assist [on|off], burst on|off|now, potion <name>, auto, st, cleave, aoe, targets N, trace start|stop|status|clear, reset, scale <0.5-3.0>, fontsize <10-96>, font <name>, dump, rageprobe, binddump <spell>")
 end
 
 function addon:UpdateRecommendation()
