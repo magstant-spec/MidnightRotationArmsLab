@@ -13,6 +13,7 @@ local furyGeneratorCastsSinceRampage = 0
 -- so the time and generator casts since it became usable approximate how far
 -- above 80 rage the player is.
 local furyRampageUsableSince = 0
+local furyLastRecklessnessCastAt = 0
 local furyGeneratorsSinceRampageUsable = 0
 local furyLastGeneratorCountedAt = 0
 local furyAssumedEnrageExpiresAt = 0
@@ -2733,6 +2734,7 @@ function addon:UNIT_SPELLCAST_SUCCEEDED(unit, _, spellID)
     if IsFuryWarrior() then
         if spellID == RECKLESSNESS_SPELL_ID or spellName == "Recklessness" then
             furyAssumedRecklessnessExpiresAt = GetTime() + FURY_RECKLESSNESS_DURATION
+            furyLastRecklessnessCastAt = GetTime()
         end
 
         if Engine.IsFuryWhirlwindSpell(spellID, spellName) then
@@ -4145,6 +4147,17 @@ end
 function Engine.ShouldFuryDelayBladestormForCooldowns(state)
     if not state or Engine.IsFuryCooldownWindow(state) then
         return false
+    end
+
+    -- 0.5.8: Recklessness' real cooldown is hidden and shortened by rage
+    -- spent; top logs and the 2026-10-31 trace show it returning 40-46s after
+    -- the previous cast. Hold Bladestorm / Odyn's Fury in that band so they
+    -- land 1-2 GCDs after Recklessness, as top players do.
+    if furyLastRecklessnessCastAt > 0 and Engine.ShouldRecommendMajorCooldowns() then
+        local sinceReck = GetTime() - furyLastRecklessnessCastAt
+        if sinceReck >= 36 and sinceReck <= 48 then
+            return true
+        end
     end
 
     local syncWindow = math.max(3.0, (state.gcd or 1.5) + 1.0)

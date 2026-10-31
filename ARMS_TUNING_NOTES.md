@@ -726,3 +726,26 @@ Changes:
   - In window: Bloodbath > Crushing Blow.
   - Then Odyn's Fury (unless Recklessness is about to return) > Bloodthirst > Execute > Raging Blow > Thunder Clap.
 - Mountain Thane single target is unchanged (no raid data; Slayer dominates raid).
+
+
+## 0.5.8 Trace review: Fury Slayer ST on a dummy (2026-10-31 22:44, 91s in combat)
+
+The trace (0.5.7) matches the top-log pattern:
+- Charge > Recklessness 0.6s > Rampage > Bladestorm 2.2s > Odyn's Fury 6.3s, then Rampage/Crushing Blow alternation through Recklessness; Raging Blow/Bloodthirst/Execute outside it.
+- Rampage 20.3 CPM (top Vashnik 22.3, Ula'tek Heroic 15.7). Raging Blow + Crushing Blow 19.6.
+- Recklessness at 0.6s and 46.0s.
+- The player followed the recommendation for 58 of 87 casts. Most differences were Bloodthirst procs after Bladestorm and pressing Crushing Blow while Rampage was shown.
+- "none" appeared only during the Bladestorm channel (empty ready set).
+- GCD read correctly (0.8-1.0s). Bladestorm / Colossus cooldown estimates were populated.
+
+Issue found:
+- The second Bladestorm went out at 41.3s, 4.7s before Recklessness returned at 46.0s. Top logs press Bladestorm 1-2 GCDs after Recklessness.
+- Recklessness' real cooldown is hidden and shortened by rage spent, so the old 3s sync guard never fired.
+
+Fix (0.5.8):
+- Track the last Recklessness cast.
+- ShouldFuryDelayBladestormForCooldowns now also holds Bladestorm / Odyn's Fury while 36-48s have passed since it, but only when major cooldowns are enabled.
+
+Rage model note:
+- The learned auto-attack gain sat at the 2.0 floor and the estimate jumped to ~130 during Bladestorm, so generation values (Bladestorm +20 x2 during Recklessness) overestimate.
+- The rotation now uses "Rampage whenever usable", so this no longer affects Fury recommendations. Tune it later with `/midrotlab rage`.
