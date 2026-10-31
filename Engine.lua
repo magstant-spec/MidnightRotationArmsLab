@@ -4317,101 +4317,47 @@ function Engine.RecommendFurySlayerSingleTarget(state)
     return nil
 end
 
+-- 0.5.6 Fury Slayer AoE, rebuilt from top Mythic+ logs (Archon, Murder Row
+-- high keys, 16 runs, 88% Slayer, 12.1.5): keep the Improved Whirlwind buff
+-- up (Whirlwind every ~3-4 casts), spend Rampage whenever usable (often twice
+-- in a row), Odyn's Fury then Bladestorm on cooldown, then Crushing Blow /
+-- Execute / Raging Blow / Bloodbath / Bloodthirst.
 function Engine.RecommendFurySlayerAOE(state)
-    -- Establish Improved Whirlwind before starting the Slayer burst sequence.
-    -- During an active cooldown window the refresh remains below Bladestorm,
-    -- Sudden Death, and Odyn's Fury so it cannot repeatedly starve those slots.
-    if not Engine.IsFuryCooldownWindow(state) and Engine.NeedsWhirlwindBuff(state) then
+    local inWindow = Engine.IsFuryCooldownWindow(state)
+
+    if Engine.NeedsWhirlwindBuff(state) then
         return state.spell.whirlwind
     end
 
-    if Engine.IsFuryCooldownWindow(state) then
-        if state.avatarUp ~= true and Engine.CanRecommendWarriorAvatar(state) then
+    if not inWindow then
+        if Engine.CanRecommendSelfSpell(RECKLESSNESS_SPELL_ID) then
+            return RECKLESSNESS_SPELL_ID
+        end
+
+        if Engine.CanRecommendWarriorAvatar(state) then
             return AVATAR_SPELL_ID
         end
-
-        -- Spend before Bladestorm, then let the next recommendation advance
-        -- through the rest of the cooldown priority.
-        if state.recentRampageCast ~= true and Engine.CanUseEnemySpell(RAMPAGE_SPELL_ID) then
-            return RAMPAGE_SPELL_ID
-        end
-
-        local bladestormSpellID = Engine.RecommendFurySlayerBladestormSequence(state, true)
-        if bladestormSpellID then
-            return bladestormSpellID
-        end
-
-        if Engine.ShouldFuryUseSuddenDeathExecute(state) then
-            return state.spell.execute
-        end
-
-        if Engine.CanRecommendFuryOdynsFury(state) then
-            return state.spell.odynsFury
-        end
-
-        if Engine.NeedsWhirlwindBuff(state) then
-            return state.spell.whirlwind
-        end
-
-        if Engine.CanUseEnemySpell(state.spell and state.spell.crushingBlow) then
-            return state.spell.crushingBlow
-        end
-
-        local bloodbathRecommendation = Engine.GetFuryBloodbathLikeRecommendation(state)
-        if bloodbathRecommendation then
-            return bloodbathRecommendation
-        end
-
-        if Engine.CanUseExecuteSpell(state) then
-            return state.spell.execute
-        end
-
-        if Engine.CanUseEnemySpell(RAMPAGE_SPELL_ID) then
-            return RAMPAGE_SPELL_ID
-        end
-
-        if Engine.CanUseEnemySpell(state.spell and state.spell.ragingBlow) then
-            return state.spell.ragingBlow
-        end
-
-        if Engine.CanUseEnemySpell(state.spell and state.spell.bloodthirst) then
-            return state.spell.bloodthirst
-        end
-
-        if Engine.CanUseEnemySpell(state.spell and state.spell.whirlwind) then
-            return state.spell.whirlwind
-        end
-
-        return nil
-    end
-
-    if Engine.CanRecommendSelfSpell(RECKLESSNESS_SPELL_ID) then
-        return RECKLESSNESS_SPELL_ID
-    end
-
-    if Engine.CanRecommendWarriorAvatar(state) then
+    elseif state.avatarUp ~= true and Engine.CanRecommendWarriorAvatar(state) then
         return AVATAR_SPELL_ID
-    end
-
-    local bladestormSpellID = Engine.RecommendFurySlayerBladestormSequence(state, true)
-    if bladestormSpellID then
-        return bladestormSpellID
     end
 
     if Engine.CanUseEnemySpell(RAMPAGE_SPELL_ID) then
         return RAMPAGE_SPELL_ID
     end
 
-    if Engine.ShouldFuryUseSuddenDeathExecute(state) then
-        return state.spell.execute
+    local burstSlot = inWindow or not Engine.ShouldFuryDelayBladestormForCooldowns(state)
+    if burstSlot then
+        if Engine.CanRecommendFuryOdynsFury(state) then
+            return state.spell.odynsFury
+        end
+
+        if Engine.CanRecommendWarriorBladestorm(state) then
+            return state.spell.bladestorm
+        end
     end
 
-    if Engine.CanRecommendFuryOdynsFury(state) then
-        return state.spell.odynsFury
-    end
-
-    if Engine.NeedsWhirlwindBuff(state) then
-        return state.spell.whirlwind
+    if Engine.CanUseEnemySpell(state.spell and state.spell.crushingBlow) then
+        return state.spell.crushingBlow
     end
 
     if Engine.CanUseExecuteSpell(state) then
@@ -4420,6 +4366,11 @@ function Engine.RecommendFurySlayerAOE(state)
 
     if Engine.CanUseEnemySpell(state.spell and state.spell.ragingBlow) then
         return state.spell.ragingBlow
+    end
+
+    local bloodbathRecommendation = Engine.GetFuryBloodbathLikeRecommendation(state)
+    if bloodbathRecommendation then
+        return bloodbathRecommendation
     end
 
     if Engine.CanUseEnemySpell(state.spell and state.spell.bloodthirst) then
@@ -4456,6 +4407,21 @@ function Engine.RecommendFurySlayerOpener(state)
 
     if state.isAOE and Engine.NeedsWhirlwindBuff(state) then
         return state.spell.whirlwind, true
+    end
+
+    -- Mythic+ pulls (Archon, Murder Row high keys): Whirlwind buff, Raging
+    -- Blow / Bloodthirst into the first Rampage, then Recklessness.
+    if state.isAOE and state.rampageCastThisCombat ~= true then
+        if Engine.CanUseEnemySpell(RAMPAGE_SPELL_ID) then
+            return RAMPAGE_SPELL_ID, true
+        end
+        if Engine.CanUseEnemySpell(state.spell and state.spell.ragingBlow) then
+            return state.spell.ragingBlow, true
+        end
+        local bloodthirstSpellID = state.spell and (state.spell.bloodthirst or state.spell.bloodthirstLike)
+        if Engine.CanUseEnemySpell(bloodthirstSpellID) then
+            return bloodthirstSpellID, true
+        end
     end
 
     if Engine.CanRecommendSelfSpell(RECKLESSNESS_SPELL_ID) then

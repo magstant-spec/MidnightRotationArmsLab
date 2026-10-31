@@ -676,3 +676,26 @@ Changes:
 - Slayer opener: Charge > (Whirlwind buff in AoE) > Recklessness > Avatar, then the normal priority.
 - Bladestorm and Odyn's Fury are on cooldown again (Bladestorm first). Outside Recklessness they are held only if it is about to come back.
 - Rampage stays whenever usable.
+
+
+## 0.5.6 Fury Slayer AoE from top Mythic+ logs (2026-10-31)
+
+Source: Archon, Murder Row high keys (+21 to +23), 16 runs, 88% Slayer, 12.1.5. Hero split across all M+ (1,483 runs): Slayer 54%, Mountain Thane 46%.
+
+First-pull pattern (4 runs read):
+- Bloodthirst/Raging Blow + Whirlwind (cleave buff), then the first Rampage.
+- Recklessness about 6-10s into the pull, after the first Rampage.
+- Odyn's Fury then Bladestorm back to back, with potion/trinket.
+- Then a steady loop: Whirlwind every ~3-4 casts to refresh the cleave buff; Rampage whenever usable (often twice in a row); Crushing Blow/Execute/Raging Blow in between.
+
+Trash CPM: Rampage 10.7, Whirlwind 7.1, Raging Blow 4.6, Execute 3.5, Crushing Blow 2.9, Odyn's Fury 2.0. Bladestorm is the top trash damage source.
+
+Changes:
+- Slayer opener in AoE: Whirlwind buff > first Rampage (Raging Blow / Bloodthirst to build) > Recklessness.
+- Slayer AoE priority:
+  - Whirlwind when the cleave buff is gone.
+  - Recklessness (outside the window), then Avatar if talented.
+  - Rampage whenever usable (the old "not right after a Rampage" hold is removed).
+  - Odyn's Fury > Bladestorm (on cooldown; outside Recklessness only held if it is about to return).
+  - Crushing Blow > Execute > Raging Blow > Bloodbath > Bloodthirst > Whirlwind.
+- Mountain Thane is unchanged and still to be checked against its own M+ logs.
