@@ -2639,6 +2639,8 @@ function addon:RecordRecommendationTrace(spellID, profileLabel, modeLabel)
         reck = snapshot.recklessnessUp == true,
         avatar = snapshot.avatarUp == true,
         rampageGenerators = snapshot.furyGeneratorCastsSinceRampage,
+        rampageUsableFor = RoundTraceNumber(snapshot.furyRampageUsableFor, 2),
+        rampageGenSinceUsable = snapshot.furyGeneratorsSinceRampageUsable,
         ww = snapshot.whirlwindStacks,
         sd = snapshot.suddenDeathStacks,
         sdUp = snapshot.suddenDeathUp == true,

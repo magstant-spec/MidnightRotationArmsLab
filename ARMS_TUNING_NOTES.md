@@ -597,3 +597,18 @@ Debugging
 Next check
 1. `/reload` on each class you play; confirm the profile label shows (for example "Shadow - Archon") and there are no Lua errors.
 2. Run a short ST and AoE trace per spec, then tune the priority entries using `specWhy`.
+
+
+## 0.5.1 Fury hidden-rage Rampage fix (2026-10-31)
+
+- WoWAnalyzer (Fury Slayer ST, 55.6% accuracy) flagged two mistakes: skipped Rampage above 100 rage during Recklessness (57%) and skipped Rampage above 100 rage outside it (33%).
+- Cause: rage is hidden in combat, and `ShouldFuryRampageAtHighRage` only had a slow fallback that needed 2 generators during Recklessness. Outside Recklessness it never fired.
+- Fix: Rampage turns usable at exactly 80 rage. The addon now tracks when that happens (resource-only usability, so range does not reset it) and treats rage as 100+ once either of these is true:
+  - one rage generator has been cast since then, or
+  - Rampage has sat usable for 0.75s in Recklessness/Avatar, or 1.5s otherwise.
+- Slayer ST order now matches the analyzer list:
+  - Cooldown window: Enrage-missing Rampage now comes first.
+  - Outside cooldowns: Enrage Rampage > capped Sudden Death > Crushing Blow > Rampage 100+ > Odyn's Fury > Execute > Raging Blow > Rampage > Bloodthirst.
+- Mountain Thane also benefits, because it shares `ShouldFuryRampageHighOrExpiring`.
+- New trace fields: `rampageUsableFor`, `rampageGenSinceUsable`.
+- Next: rerun the same Fury Slayer ST log and compare the analyzer's accuracy and the two Rampage mistakes.

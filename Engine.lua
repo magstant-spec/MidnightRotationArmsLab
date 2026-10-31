@@ -9,6 +9,11 @@ local furyOpenerBloodthirstDone = false
 local furyOpenerBloodthirstCastAt = 0
 local furyLastRampageCastAt = 0
 local furyGeneratorCastsSinceRampage = 0
+-- 0.5.1 hidden-rage estimate: Rampage becomes usable at exactly its cost (80),
+-- so the time and generator casts since it became usable approximate how far
+-- above 80 rage the player is.
+local furyRampageUsableSince = 0
+local furyGeneratorsSinceRampageUsable = 0
 local furyLastGeneratorCountedAt = 0
 local furyAssumedEnrageExpiresAt = 0
 local furyAssumedRecklessnessExpiresAt = 0
@@ -2461,6 +2466,8 @@ function Engine.ResetFuryOpenerState(inCombat)
     furyLastRampageCastAt = 0
     furyGeneratorCastsSinceRampage = 0
     furyLastGeneratorCountedAt = 0
+    furyRampageUsableSince = 0
+    furyGeneratorsSinceRampageUsable = 0
     furyAssumedEnrageExpiresAt = 0
     furyAssumedRecklessnessExpiresAt = 0
     furyAssumedWhirlwindStacks = 0
@@ -2734,6 +2741,8 @@ function addon:UNIT_SPELLCAST_SUCCEEDED(unit, _, spellID)
         if Engine.IsFuryRampageSpell(spellID, spellName) then
             furyLastRampageCastAt = GetTime()
             furyGeneratorCastsSinceRampage = 0
+            furyRampageUsableSince = 0
+            furyGeneratorsSinceRampageUsable = 0
             Engine.MarkFuryEnrageApplied()
         elseif Engine.IsFuryOdynsFurySpell(spellID, spellName) then
             Engine.MarkFuryEnrageApplied()
@@ -2746,6 +2755,9 @@ function addon:UNIT_SPELLCAST_SUCCEEDED(unit, _, spellID)
             if now - furyLastGeneratorCountedAt >= 0.25 then
                 furyGeneratorCastsSinceRampage = math.min(3, furyGeneratorCastsSinceRampage + 1)
                 furyLastGeneratorCountedAt = now
+                if furyRampageUsableSince > 0 then
+                    furyGeneratorsSinceRampageUsable = math.min(5, furyGeneratorsSinceRampageUsable + 1)
+                end
             end
         end
     end
@@ -3160,6 +3172,20 @@ function Engine.BuildWarriorState()
     local heroicMightUp = GetPlayerAuraRemainingByID(HEROIC_MIGHT_AURA_ID) > 0
         or GetPlayerAuraRemainingByName("Heroic Might") > 0
 
+    if IsFuryWarrior() then
+        -- Resource-only usability (ignores range), so walking out of melee does
+        -- not reset the estimate.
+        if Engine.IsSpellUsableStrict(RAMPAGE_SPELL_ID) then
+            if furyRampageUsableSince <= 0 then
+                furyRampageUsableSince = GetTime()
+                furyGeneratorsSinceRampageUsable = 0
+            end
+        else
+            furyRampageUsableSince = 0
+            furyGeneratorsSinceRampageUsable = 0
+        end
+    end
+
         return {
         hasTarget = HasHostileLivingTarget(),
         inCombat = inCombat,
@@ -3168,6 +3194,8 @@ function Engine.BuildWarriorState()
         openerBloodthirstCastAt = furyOpenerBloodthirstCastAt,
         recentRampageCast = furyLastRampageCastAt > 0 and (GetTime() - furyLastRampageCastAt) <= math.max(3.0, (gcd or 1.5) + 1.0),
         furyGeneratorCastsSinceRampage = furyGeneratorCastsSinceRampage,
+        furyRampageUsableFor = furyRampageUsableSince > 0 and (GetTime() - furyRampageUsableSince) or 0,
+        furyGeneratorsSinceRampageUsable = furyGeneratorsSinceRampageUsable,
         isFury = IsFuryWarrior(),
         isArms = IsArmsWarrior(),
         isFurySlayer = addon:IsFurySlayer(),
@@ -4123,16 +4151,26 @@ function Engine.ShouldFuryRampageAtHighRage(state, threshold)
         return false
     end
 
-    if state.rageKnown == true and (state.rage or 0) >= (threshold or 100) then
+    if state.rageKnown == true then
+        return (state.rage or 0) >= (threshold or 100)
+    end
+
+    -- Rage is hidden in combat. Rampage turns usable at 80 rage, so treat the
+    -- player as at/above 100 once a rage generator has been cast since that
+    -- moment, or once Rampage has sat usable for a while (auto-attacks alone
+    -- add ~20 rage within ~1.5s, faster during Recklessness).
+    if (state.furyGeneratorsSinceRampageUsable or 0) >= 1 then
         return true
     end
 
-    -- Midnight can hide Rage during combat. During Recklessness only, use two
-    -- observed rage-generating casts since Rampage as a conservative overflow
-    -- signal. The ordinary readable-rage threshold remains unchanged.
-    return state.rageKnown ~= true
-        and state.recklessnessUp == true
-        and (state.furyGeneratorCastsSinceRampage or 0) >= 2
+    local usableFor = state.furyRampageUsableFor or 0
+    local waitSeconds = Engine.IsFuryCooldownWindow(state) and 0.75 or 1.5
+    if usableFor >= waitSeconds then
+        return true
+    end
+
+    -- Older fallback kept for safety.
+    return state.recklessnessUp == true and (state.furyGeneratorCastsSinceRampage or 0) >= 2
 end
 
 function Engine.ShouldFuryRampageBeforeBladestorm(state)
@@ -4198,6 +4236,11 @@ end
 
 function Engine.RecommendFurySlayerSingleTarget(state)
     if Engine.IsFuryCooldownWindow(state) then
+        -- WoWAnalyzer order: Rampage for missing Enrage, then Rampage at 100+.
+        if Engine.ShouldFuryRampageToRefreshEnrage(state) then
+            return RAMPAGE_SPELL_ID
+        end
+
         if state.avatarUp ~= true and Engine.CanRecommendWarriorAvatar(state) then
             return AVATAR_SPELL_ID
         end
@@ -4273,12 +4316,22 @@ function Engine.RecommendFurySlayerSingleTarget(state)
         return bladestormSpellID
     end
 
-    if Engine.ShouldFuryRampageHighOrExpiring(state) then
+    -- WoWAnalyzer order outside cooldowns: Enrage Rampage > Crushing Blow >
+    -- Rampage 100+ > Execute > Raging Blow > Rampage > Bloodthirst.
+    if Engine.ShouldFuryRampageToRefreshEnrage(state) then
         return RAMPAGE_SPELL_ID
     end
 
-    if Engine.ShouldFuryUseSuddenDeathExecute(state) then
+    if Engine.ShouldFuryUseSuddenDeathExecute(state) and (state.suddenDeathStacks or 0) >= 2 then
         return state.spell.execute
+    end
+
+    if Engine.CanUseEnemySpell(state.spell and state.spell.crushingBlow) then
+        return state.spell.crushingBlow
+    end
+
+    if Engine.ShouldFuryRampageAtHighRage(state, 100) then
+        return RAMPAGE_SPELL_ID
     end
 
     if Engine.CanRecommendFuryOdynsFury(state) then
@@ -4287,10 +4340,6 @@ function Engine.RecommendFurySlayerSingleTarget(state)
 
     if Engine.CanUseExecuteSpell(state) then
         return state.spell.execute
-    end
-
-    if Engine.CanUseEnemySpell(state.spell and state.spell.crushingBlow) then
-        return state.spell.crushingBlow
     end
 
     if Engine.CanUseEnemySpell(state.spell and state.spell.ragingBlow) then
@@ -6584,6 +6633,8 @@ function addon:GetDebugSnapshot()
         openerBloodthirstCastAt = state.openerBloodthirstCastAt,
         recentRampageCast = state.recentRampageCast,
         furyGeneratorCastsSinceRampage = state.furyGeneratorCastsSinceRampage,
+        furyRampageUsableFor = state.furyRampageUsableFor,
+        furyGeneratorsSinceRampageUsable = state.furyGeneratorsSinceRampageUsable,
         isRetributionTemplar = state.isRetributionTemplar,
         isRetributionHeraldOfTheSun = state.isRetributionHeraldOfTheSun,
         hasRadiantGlory = state.hasRadiantGlory,

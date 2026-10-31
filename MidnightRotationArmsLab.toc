@@ -2,7 +2,7 @@
 ## Title: Midnight Rotation Arms Lab
 ## Notes: Midnight rotation helper for every DPS specialization.
 ## Author: Reece
-## Version: 0.5.0-all-dps-specs
+## Version: 0.5.1-fury-hidden-rage-rampage
 ## Category: Combat
 ## IconTexture: Interface\Icons\Ability_Warrior_OffensiveStance
 ## SavedVariables: MidnightRotationArmsLabDB
