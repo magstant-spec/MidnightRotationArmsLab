@@ -766,3 +766,23 @@ Evidence: the #1 Ula'tek Mythic Fury log on Warcraft Logs (Eroka, 9:50 kill, rep
 Fix:
 - New Engine.ShouldHoldFuryBladestormForRecklessness: outside a Recklessness window, hold Bladestorm while Recklessness is known, cooldowns are enabled, and Recklessness was cast within the last 55s (or is ready to cast).
 - Slayer ST and AoE use it for Bladestorm. Odyn's Fury keeps the previous slot logic.
+
+## 0.6.0-arms-slayer-top-logs
+
+Source: #1 Ula'tek Mythic Arms log (Slayer, Warcraft Logs report 7fazrXGK41b8VhdT, fight 11).
+
+Findings:
+- Opener: Charge > Cleave > Overpower > Avatar > Colossus Smash > Execute > Bladestorm. Avatar goes 0.2-0.6s before Colossus Smash.
+- Colossus Smash every ~30-35s. Avatar every ~60-80s.
+- Bladestorm (16 casts in 10 min) goes right after Colossus Smash, sometimes with one Execute in between. Otherwise it is used on cooldown and is not held for Colossus Smash.
+- Nothing is cast during Bladestorm: 0 Storm Bolt all fight. Each Bladestorm is followed by ~5 Mortal Strikes about 1s apart, which look automatic.
+- Execute phase is Execute-heavy, with Mortal Strike, Overpower and Heroic Strike. No Cleave on a single target.
+- Cleave is only heavy with Sweeping Strikes and adds.
+- Casts per minute: Mortal Strike 15.3 (about half from Bladestorm), Overpower 6.8, Cleave 6.4, Heroic Strike 3.8. Execute does the most damage.
+
+Changes:
+- Opener: Cleave setup > Overpower (once per combat, before Avatar/Colossus Smash) > Avatar > Colossus Smash > post-Colossus.
+- New RecommendArmsSlayerPostColossus: Execute if Colossus Smash was just cast and Execute is usable, then Bladestorm.
+- Post-Colossus is checked ahead of the Cleave refresh while Colossus Smash is up, and right after Colossus Smash in the Slayer single-target and Execute lists.
+- ShouldUseArmsSlayerBladestorm is now "on cooldown". It no longer holds Bladestorm for Colossus Smash.
+- No Storm Bolt or other utility is suggested during the Bladestorm channel.

@@ -14,6 +14,7 @@ local furyGeneratorCastsSinceRampage = 0
 -- above 80 rage the player is.
 local furyRampageUsableSince = 0
 local furyLastRecklessnessCastAt = 0
+local armsLastOverpowerCastAt = 0
 local furyGeneratorsSinceRampageUsable = 0
 local furyLastGeneratorCountedAt = 0
 local furyAssumedEnrageExpiresAt = 0
@@ -2708,6 +2709,10 @@ function addon:UNIT_SPELLCAST_SUCCEEDED(unit, _, spellID)
         armsLastColossusCastAt = GetTime()
     end
 
+    if IsArmsWarrior() and spellName == "Overpower" then
+        armsLastOverpowerCastAt = GetTime()
+    end
+
     if IsArmsWarrior() and (spellName == "Bladestorm"
         or spellID == 227847
         or spellID == 389774
@@ -4912,18 +4917,44 @@ function addon:RecommendArmsWowheadCombatOpener(state, colossusCooldown, colossu
         -- Colossus Smash, Avatar, a conditional Execute, and Bladestorm. Keep
         -- Cleave eligible for the full opener window because it can be briefly
         -- unavailable during Charge's opening GCD.
+        -- Once Colossus Smash is down, the top log goes straight to Execute /
+        -- Bladestorm rather than refreshing Cleave.
+        if colossusUp then
+            local earlyPostColossus = addon:RecommendArmsSlayerPostColossus(state, colossusUp)
+            if earlyPostColossus then
+                return earlyPostColossus
+            end
+        end
+
         local cleaveSetupSpellID = addon:RecommendArmsWowheadCleaveRefresh(state, 10.0, false, colossusCooldown)
             or addon:RecommendArmsWowheadRendRefresh(state, 10.0, false, colossusCooldown)
         if cleaveSetupSpellID then
             return cleaveSetupSpellID
         end
 
-        if Engine.CanRecommendEnemySpell(state.spell and state.spell.warbreakerLike) then
-            return state.spell.warbreakerLike
+        -- 0.6.0 opener from the #1 Ula'tek Mythic Arms log: Charge, Cleave,
+        -- Overpower, Avatar, Colossus Smash, Execute, Bladestorm.
+        local overpowerThisCombat = combatStartedAt ~= nil and armsLastOverpowerCastAt >= combatStartedAt
+        if not overpowerThisCombat
+        and not colossusUp
+        and Engine.CanUseEnemySpell(OVERPOWER_SPELL_ID)
+        and (addon:CanUseArmsWowheadAvatar(state, colossusCooldown)
+            or Engine.CanRecommendEnemySpell(state.spell and state.spell.warbreakerLike))
+        then
+            return OVERPOWER_SPELL_ID
         end
 
         if addon:CanUseArmsWowheadAvatar(state, colossusCooldown) then
             return AVATAR_SPELL_ID
+        end
+
+        if Engine.CanRecommendEnemySpell(state.spell and state.spell.warbreakerLike) then
+            return state.spell.warbreakerLike
+        end
+
+        local postColossus = addon:RecommendArmsSlayerPostColossus(state, colossusUp)
+        if postColossus then
+            return postColossus
         end
 
         if addon:ShouldSpendArmsSuddenDeathCapped(state) then
@@ -4991,35 +5022,30 @@ function addon:RecommendArmsWowheadCooldowns(state, colossusCooldown, colossusUp
     return nil
 end
 
+-- 0.6.0: the #1 Ula'tek Mythic Arms log used 16 Bladestorms in 10 minutes,
+-- right after Colossus Smash when both were ready but otherwise on cooldown
+-- (several went out 6-7s before the next Colossus Smash).
 function addon:ShouldUseArmsSlayerBladestorm(state, colossusCooldown, colossusUp)
-    if not state or not Engine.CanRecommendWarriorBladestorm(state) then
-        return false
-    end
-
-    local cooldown = tonumber(colossusCooldown)
-    local colossusFarAway = cooldown ~= nil
-        and cooldown < math.huge
-        and cooldown > 25.0
-
-    return colossusUp == true
-        or state.avatarUp == true
-        or colossusFarAway
-        or (state.executionersPrecisionStacks or 0) >= 2
+    return state ~= nil and Engine.CanRecommendWarriorBladestorm(state)
 end
 
-function addon:RecommendArmsBladestormChannelUtility(state)
-    if not state or state.bladestormUp ~= true or not state.spell then
+-- Colossus Smash -> (proc Execute) -> Bladestorm, as in the top log.
+function addon:RecommendArmsSlayerPostColossus(state, colossusUp)
+    if not colossusUp or not Engine.CanRecommendWarriorBladestorm(state) then
         return nil
     end
 
-    if Engine.CanUseEnemySpell(state.spell.stormBolt) then
-        return state.spell.stormBolt
+    if state.recentColossusSmashCast == true and Engine.CanUseExecuteSpell(state) then
+        return state.spell.execute
     end
 
-    if Engine.CanUseEnemySpell(state.spell.wreckingThrow) then
-        return state.spell.wreckingThrow
-    end
+    return state.spell.bladestorm
+end
 
+-- 0.6.0: the #1 Ula'tek Mythic Arms log casts nothing during Bladestorm (no
+-- Storm Bolt all fight, Wrecking Throw only on adds), and Slayer's Bladestorm
+-- triggers its own Mortal Strikes. Recommend nothing while it channels.
+function addon:RecommendArmsBladestormChannelUtility(state)
     return nil
 end
 
@@ -5041,6 +5067,11 @@ function addon:RecommendArmsWowheadSlayerSingleTarget(state, colossusCooldown, c
 
     if Engine.CanRecommendEnemySpell(state.spell and state.spell.warbreakerLike) then
         return state.spell.warbreakerLike
+    end
+
+    local postColossus = addon:RecommendArmsSlayerPostColossus(state, colossusUp)
+    if postColossus then
+        return postColossus
     end
 
     if addon:ShouldSpendArmsSuddenDeathCapped(state) or addon:ShouldSpendArmsSlayerExecutioner(state, 4) then
@@ -5110,6 +5141,11 @@ function addon:RecommendArmsWowheadSlayerExecute(state, colossusCooldown, coloss
 
     if Engine.CanRecommendEnemySpell(state.spell and state.spell.warbreakerLike) then
         return state.spell.warbreakerLike
+    end
+
+    local postColossus = addon:RecommendArmsSlayerPostColossus(state, colossusUp)
+    if postColossus then
+        return postColossus
     end
 
     if addon:ShouldSpendArmsSuddenDeathCapped(state) or addon:ShouldSpendArmsSlayerExecutioner(state, 4) then

@@ -2,7 +2,7 @@
 ## Title: Midnight Rotation Arms Lab
 ## Notes: Midnight rotation helper for every DPS specialization.
 ## Author: Reece
-## Version: 0.5.9-fury-bladestorm-in-reck
+## Version: 0.6.0-arms-slayer-top-logs
 ## Category: Combat
 ## IconTexture: Interface\Icons\Ability_Warrior_OffensiveStance
 ## SavedVariables: MidnightRotationArmsLabDB
