@@ -2,7 +2,7 @@
 ## Title: Midnight Rotation Arms Lab
 ## Notes: Midnight rotation helper for every DPS specialization.
 ## Author: Reece
-## Version: 0.6.1-learned-cooldowns
+## Version: 0.6.2-fury-execute-priority
 ## Category: Combat
 ## IconTexture: Interface\Icons\Ability_Warrior_OffensiveStance
 ## SavedVariables: MidnightRotationArmsLabDB

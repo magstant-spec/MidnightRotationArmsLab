@@ -2084,8 +2084,15 @@ function Engine.GetSuddenDeathState(executeSpellID)
 
     local actionCountSignal = actionCountKnown and actionCount > 0
 
+    -- 0.6.2: the action-button glow stayed on for whole pulls in traces while
+    -- the overlay API flipped exactly with Execute's usability. Only fall back
+    -- to the button glow when the client has no overlay API.
+    local overlayApiAvailable = (C_SpellActivationOverlay and C_SpellActivationOverlay.IsSpellOverlayed) ~= nil
+        or IsSpellOverlayed ~= nil
+    local glowSignal = buttonGlow and not overlayApiAvailable
+
     return {
-        active = auraByID or auraByAltID or auraByName or overlayByResolvedExecute or overlayByBaseExecute or overlayByFuryExecute or actionCountSignal or buttonGlow,
+        active = auraByID or auraByAltID or auraByName or overlayByResolvedExecute or overlayByBaseExecute or overlayByFuryExecute or actionCountSignal or glowSignal,
         auraByID = auraByID,
         auraByAltID = auraByAltID,
         auraByName = auraByName,
@@ -4337,6 +4344,13 @@ function Engine.RecommendFurySlayerSingleTarget(state)
         return RAMPAGE_SPELL_ID
     end
 
+    -- 0.6.2 (WoWAnalyzer): Execute with Sudden Death or in execute range goes
+    -- ahead of Bladestorm, Odyn's Fury and Crushing Blow, above all inside
+    -- Recklessness where Crushing Blow was starving it.
+    if Engine.CanUseExecuteSpell(state) then
+        return state.spell.execute
+    end
+
     -- Bladestorm and Odyn's Fury on cooldown; outside Recklessness, hold them
     -- briefly only if Recklessness is about to come back.
     local burstSlot = inWindow or not Engine.ShouldFuryDelayBladestormForCooldowns(state)
@@ -4414,12 +4428,12 @@ function Engine.RecommendFurySlayerAOE(state)
         return state.spell.bladestorm
     end
 
-    if Engine.CanUseEnemySpell(state.spell and state.spell.crushingBlow) then
-        return state.spell.crushingBlow
-    end
-
     if Engine.CanUseExecuteSpell(state) then
         return state.spell.execute
+    end
+
+    if Engine.CanUseEnemySpell(state.spell and state.spell.crushingBlow) then
+        return state.spell.crushingBlow
     end
 
     if Engine.CanUseEnemySpell(state.spell and state.spell.ragingBlow) then

@@ -796,3 +796,12 @@ First Arms trace on 0.6.0 (66s, single target):
 
 Change:
 - When an estimated cooldown flips back to ready, the time since our cast is learned as the real cooldown duration. The longest value seen is kept, so early resets don't shorten it. This applies to every spec.
+
+## 0.6.2-fury-execute-priority
+
+Source: WoWAnalyzer Fury report. "Skipped Execute with Sudden Death (and in Recklessness)" accounted for 63% of flagged mistakes.
+
+Changes:
+- Fury Slayer single target: Execute (Sudden Death or execute range) now comes right after Rampage, ahead of Bladestorm, Odyn's Fury and Crushing Blow.
+- Fury Slayer AoE: Execute now comes ahead of Crushing Blow.
+- Sudden Death detection: the Arms trace showed the action-button proc glow stuck on for the whole pull. The overlay API (IsSpellOverlayed / glow events) flipped exactly with Execute's usability, so the button glow is now only used when the overlay API is missing.
