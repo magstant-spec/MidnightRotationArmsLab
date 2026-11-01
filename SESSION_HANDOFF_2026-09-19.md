@@ -360,3 +360,13 @@ Changes:
 - Post-Colossus is checked ahead of the Cleave refresh while Colossus Smash is up, and right after Colossus Smash in the Slayer single-target and Execute lists.
 - ShouldUseArmsSlayerBladestorm is now "on cooldown". It no longer holds Bladestorm for Colossus Smash.
 - No Storm Bolt or other utility is suggested during the Bladestorm channel.
+
+## 0.6.1-learned-cooldowns
+
+First Arms trace on 0.6.0 (66s, single target):
+- The opener matched the #1 log exactly: Charge, Cleave, Overpower, Avatar, Colossus Smash, Execute, Bladestorm.
+- The 5 Mortal Strikes after each Bladestorm are automatic. They are cast about 1s apart while the addon shows nothing.
+- Cooldown estimates were wrong in combat. Colossus Smash was estimated at 45s but was really about 32s. Bladestorm was estimated at 90s but was really about 25-30s.
+
+Change:
+- When an estimated cooldown flips back to ready, the time since our cast is learned as the real cooldown duration. The longest value seen is kept, so early resets don't shorten it. This applies to every spec.

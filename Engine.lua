@@ -953,6 +953,8 @@ local function GetKnownCooldownDuration(spellID)
     return nil
 end
 
+local observedCooldownDuration = {}
+
 local function LearnCooldownDuration(spellID, duration)
     if IsSafeNonSecretNumber(duration) and duration > 2.0 then
         learnedCooldownDuration[spellID] = duration
@@ -1044,6 +1046,19 @@ local function GetCooldownRemaining(spellID)
     end
 
     if cooldownInfo.isActive == false or cooldownInfo.isOnGCD == true then
+        -- The cooldown just came back while we were estimating it: the time
+        -- since our cast is the real (talented/hasted) duration. Keep the
+        -- longest one seen so early resets do not shorten it.
+        if cooldownEstimateUsed[spellID] then
+            local castAt = GetLastCastTime(spellID)
+            local observed = castAt and (GetTime() - castAt) or nil
+            if observed and observed > 2.0 and observed < 600
+            and (observedCooldownDuration[spellID] == nil or observed > observedCooldownDuration[spellID])
+            then
+                observedCooldownDuration[spellID] = observed
+                LearnCooldownDuration(spellID, observed)
+            end
+        end
         cooldownEstimateUsed[spellID] = nil
         return 0
     end
