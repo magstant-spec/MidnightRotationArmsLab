@@ -811,3 +811,8 @@ Changes:
 - Removed the Whirlwind filler from the Fury Slayer and Mountain Thane single-target lists. When nothing else is ready, the addon now shows nothing instead of Whirlwind.
 - AoE still uses Whirlwind to keep the Improved Whirlwind cleave buff up.
 - Open question: Fury target counting includes nearby hostile nameplates with unknown range, and training dummies. On a dummy row this can switch Fury into AoE mode, which then asks for Whirlwind upkeep. `/midrotlab st` forces single target. A trace with the mode/targets columns would confirm it.
+
+## 0.6.4-slayer-whirlwind-filler
+
+- Put Whirlwind back as the last filler for Fury Slayer single target, following the Icy Veins Slayer ST priority.
+- Mountain Thane single target still has no Whirlwind; Thunder Clap covers that role.

@@ -4384,8 +4384,11 @@ function Engine.RecommendFurySlayerSingleTarget(state)
         return state.spell.bloodthirst
     end
 
-    -- 0.6.3: no Whirlwind filler on a single target (Slayer ST logs do not
-    -- use it; Whirlwind is only for the cleave buff in AoE).
+    -- 0.6.4: Whirlwind is the last-resort Slayer filler (Icy Veins Slayer ST
+    -- priority). Mountain Thane does not use it on a single target.
+    if Engine.CanUseEnemySpell(state.spell and state.spell.whirlwind) then
+        return state.spell.whirlwind
+    end
 
     return nil
 end
