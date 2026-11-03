@@ -2,7 +2,7 @@
 ## Title: Midnight Rotation Arms Lab
 ## Notes: Midnight rotation helper for every DPS specialization.
 ## Author: Reece
-## Version: 0.6.2-fury-execute-priority
+## Version: 0.6.3-fury-no-st-whirlwind
 ## Category: Combat
 ## IconTexture: Interface\Icons\Ability_Warrior_OffensiveStance
 ## SavedVariables: MidnightRotationArmsLabDB

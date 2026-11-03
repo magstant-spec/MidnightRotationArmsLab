@@ -4384,9 +4384,8 @@ function Engine.RecommendFurySlayerSingleTarget(state)
         return state.spell.bloodthirst
     end
 
-    if Engine.CanUseEnemySpell(state.spell and state.spell.whirlwind) then
-        return state.spell.whirlwind
-    end
+    -- 0.6.3: no Whirlwind filler on a single target (Slayer ST logs do not
+    -- use it; Whirlwind is only for the cleave buff in AoE).
 
     return nil
 end
@@ -4613,10 +4612,6 @@ function Engine.RecommendFuryMountainThaneSingleTarget(state)
             return THUNDER_CLAP_SPELL_ID
         end
 
-        if Engine.CanUseEnemySpell(state.spell and state.spell.whirlwind) then
-            return state.spell.whirlwind
-        end
-
         return nil
     end
 
@@ -4675,9 +4670,6 @@ function Engine.RecommendFuryMountainThaneSingleTarget(state)
         return THUNDER_CLAP_SPELL_ID
     end
 
-    if Engine.CanUseEnemySpell(state.spell and state.spell.whirlwind) then
-        return state.spell.whirlwind
-    end
 
     return nil
 end

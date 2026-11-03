@@ -805,3 +805,9 @@ Changes:
 - Fury Slayer single target: Execute (Sudden Death or execute range) now comes right after Rampage, ahead of Bladestorm, Odyn's Fury and Crushing Blow.
 - Fury Slayer AoE: Execute now comes ahead of Crushing Blow.
 - Sudden Death detection: the Arms trace showed the action-button proc glow stuck on for the whole pull. The overlay API (IsSpellOverlayed / glow events) flipped exactly with Execute's usability, so the button glow is now only used when the overlay API is missing.
+
+## 0.6.3-fury-no-st-whirlwind
+
+- Removed the Whirlwind filler from the Fury Slayer and Mountain Thane single-target lists. When nothing else is ready, the addon now shows nothing instead of Whirlwind.
+- AoE still uses Whirlwind to keep the Improved Whirlwind cleave buff up.
+- Open question: Fury target counting includes nearby hostile nameplates with unknown range, and training dummies. On a dummy row this can switch Fury into AoE mode, which then asks for Whirlwind upkeep. `/midrotlab st` forces single target. A trace with the mode/targets columns would confirm it.
